@@ -62,3 +62,19 @@ Tag --> stores a pointer to a specific commit with extra metadata (name, message
 
 #We can't update changes in main branch we make new branch then update.
 #We change in main only when we pull from remote branch and merge it with main branch.
+
+'''
+Git Important Commands in easy words:
+git init  -> Initialize a new Git repository.
+git add . -> Stage all changes in the current directory for the next commit.
+git commit -m "message" -> Commit the staged changes with a descriptive message.
+git status -> Show the status of the working directory and staging area.
+git log -> Show the commit history.
+git branch -> List all branches in the repository.
+git checkout -b branch_name -> Create and switch to a new branch.
+git merge branch_name -> Merge the specified branch into the current branch.
+git push origin branch_name -> Push the local branch to the remote repository.
+git clone repository_url -> Clone a remote repository to your local machine.
+git pull origin branch_name -> Fetch and merge changes from the remote branch to your local branch.
+'''''''''''''''''''''
+
