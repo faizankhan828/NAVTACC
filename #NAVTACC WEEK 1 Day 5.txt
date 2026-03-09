@@ -1,0 +1,33 @@
+#NAVTACC WEEK 1 Day 5 Conditional Statement#
+
+
+Conditions are evaluated in Boolean context.
+Python is a block oriented language.
+
+if condition 1:
+    block
+elif condition 2:
+    block
+else:
+    block
+
+Indentation defines the block (typically 4 spaces). No braces.
+
+#Conditional (Ternary) Expression
+Syntax: value_if_true if condition else value_if_false
+
+print("negative")if x < 0: print("zero") elif x == 0: else print("x non negative")
+
+
+
+
+# LOOP
+There are 2 loops in python
+While Loop
+For Loop
+
+While Loop:
+Repeatedly executes a block of code
+We break loop in 2 ways 
+1. Count based loop
+2. Condition based (Event based) loop
