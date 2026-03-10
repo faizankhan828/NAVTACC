@@ -78,3 +78,12 @@ git clone repository_url -> Clone a remote repository to your local machine.
 git pull origin branch_name -> Fetch and merge changes from the remote branch to your local branch.
 '''''''''''''''''''''
 
+'''
+Forking a repository allows you to create a personal copy of someone
+else's project on GitHub.
+1. Go to the repository you want to fork on GitHub.
+2. Click the "Fork" button in the upper right corner of the repository page.
+3. Choose your GitHub account as the destination for the fork.
+4. After the fork is created, you can clone it to your local machine using:   
+   git clone
+'''
