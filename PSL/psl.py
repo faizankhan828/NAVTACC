@@ -1,737 +1,359 @@
+import random
 from pathlib import Path
 
+DATA_DIR = Path(__file__).resolve().parent
 
-def _to_bool(text: str) -> bool:
-	return text.strip().lower() in {"1", "true", "yes", "y"}
 
+# ─── File-reading helper ───
+
+def _read_lines(filepath: Path) -> list[str]:
+    if not filepath.exists():
+        print(f"  [WARNING] File not found: {filepath}")
+        return []
+    with filepath.open("r", encoding="utf-8") as fh:
+        return [l.strip() for l in fh if l.strip() and not l.strip().startswith("#")]
+
+
+def _parse_line(line: str, expected: int) -> list[str]:
+    parts = [x.strip() for x in line.split("|")]
+    if len(parts) != expected:
+        raise ValueError(f"Expected {expected} fields, got {len(parts)}: {line[:50]}")
+    return parts
+
+
+# ─── Player ───
 
 class Player:
-	def __init__(self) -> None:
-		self._player_id = ""
-		self._full_name = ""
-		self._nationality = ""
-		self._age = 0
-		self._role = ""
-		self._batting_style = ""
-		self._bowling_style = ""
-		self._total_runs = 0
-		self._total_wickets = 0
-		self._matches_played = 0
-		self._batting_avg = 0.0
-		self._bowling_avg = 0.0
-		self._salary = 0.0
-		self._is_captain = False
+    def __init__(self, player_id, full_name, nationality, age, role,
+                 batting_style, bowling_style, total_runs, total_wickets,
+                 matches_played, salary):
+        self.player_id = player_id
+        self.full_name = full_name
+        self.nationality = nationality
+        self.age = int(age)
+        self.role = role
+        self.batting_style = batting_style
+        self.bowling_style = bowling_style
+        self.total_runs = int(total_runs)
+        self.total_wickets = int(total_wickets)
+        self.matches_played = int(matches_played)
+        self.salary = float(salary)
+        # Computed
+        self.batting_avg = round(self.total_runs / self.matches_played, 2) if self.matches_played else 0.0
+        self.bowling_avg = round(self.matches_played / self.total_wickets, 2) if self.total_wickets else 0.0
 
-	@classmethod
-	def from_data(
-		cls,
-		player_id: str,
-		full_name: str,
-		nationality: str,
-		age: str,
-		role: str,
-		bat_style: str,
-		bowl_style: str,
-		runs: str,
-		wickets: str,
-		matches: str,
-		salary: str,
-	) -> "Player":
-		p = cls()
-		p._player_id = player_id.strip()
-		p._full_name = full_name.strip()
-		p._nationality = nationality.strip()
-		p._age = int(age)
-		p._role = role.strip()
-		p._batting_style = bat_style.strip()
-		p._bowling_style = bowl_style.strip()
-		p.total_runs = int(runs)
-		p.total_wickets = int(wickets)
-		p._matches_played = int(matches)
-		p.salary = float(salary)
-		p.compute_averages()
-		return p
+    @classmethod
+    def from_line(cls, line: str) -> "Player":
+        return cls(*_parse_line(line, 11))
 
-	@classmethod
-	def load_from_line(cls, line: str) -> "Player":
-		parts = [x.strip() for x in line.split("|")]
-		if len(parts) != 11:
-			raise ValueError(f"Malformed player line: {line}")
-		return cls.from_data(*parts)
+    def display(self) -> None:
+        print(f"  {self.full_name:<24} {self.role:<14} Runs:{self.total_runs:<5} "
+              f"Wkts:{self.total_wickets:<4} Avg:{self.batting_avg:<6}")
 
-	@property
-	def player_id(self) -> str:
-		return self._player_id
+    def __lt__(self, other: "Player") -> bool:
+        return self.total_runs < other.total_runs
 
-	@property
-	def full_name(self) -> str:
-		return self._full_name
+    def __str__(self) -> str:
+        return f"{self.full_name} ({self.role})"
 
-	@property
-	def role(self) -> str:
-		return self._role
 
-	@property
-	def total_runs(self) -> int:
-		return self._total_runs
-
-	@total_runs.setter
-	def total_runs(self, value: int) -> None:
-		if value < 0:
-			raise ValueError("Runs cannot be negative")
-		self._total_runs = value
-
-	@property
-	def total_wickets(self) -> int:
-		return self._total_wickets
-
-	@total_wickets.setter
-	def total_wickets(self, value: int) -> None:
-		if value < 0:
-			raise ValueError("Wickets cannot be negative")
-		self._total_wickets = value
-
-	@property
-	def matches_played(self) -> int:
-		return self._matches_played
-
-	@property
-	def batting_avg(self) -> float:
-		return self._batting_avg
-
-	@property
-	def bowling_avg(self) -> float:
-		return self._bowling_avg
-
-	@property
-	def salary(self) -> float:
-		return self._salary
-
-	@salary.setter
-	def salary(self, value: float) -> None:
-		if value < 0:
-			raise ValueError("Salary cannot be negative")
-		self._salary = value
-
-	def compute_averages(self) -> None:
-		if self._matches_played > 0:
-			self._batting_avg = round(self._total_runs / self._matches_played, 2)
-			if self._total_wickets > 0:
-				self._bowling_avg = round(self._matches_played / self._total_wickets, 2)
-			else:
-				self._bowling_avg = 0.0
-		else:
-			self._batting_avg = 0.0
-			self._bowling_avg = 0.0
-
-	def display(self) -> None:
-		print(
-			f"{self._full_name:<24} {self._role:<14} Runs:{self._total_runs:<5} "
-			f"Wkts:{self._total_wickets:<4} Avg:{self._batting_avg:<6}"
-		)
-
-	def __eq__(self, other: object) -> bool:
-		if not isinstance(other, Player):
-			return NotImplemented
-		return self._player_id == other._player_id
-
-	def __lt__(self, other: "Player") -> bool:
-		return self._total_runs < other._total_runs
-
-	def __str__(self) -> str:
-		return f"{self._full_name} ({self._role})"
-
+# ─── CoachingStaff ───
 
 class CoachingStaff:
-	def __init__(self) -> None:
-		self._staff_id = ""
-		self._full_name = ""
-		self._nationality = ""
-		self._role = ""
-		self._experience_years = 0
-		self._qualifications = ""
-		self._franchise_team = ""
-		self._salary = 0.0
+    def __init__(self, staff_id, full_name, nationality, role,
+                 experience_years, qualifications, franchise_team, salary):
+        self.staff_id = staff_id
+        self.full_name = full_name
+        self.nationality = nationality
+        self.role = role
+        self.experience_years = int(experience_years)
+        self.qualifications = qualifications
+        self.franchise_team = franchise_team
+        self.salary = float(salary)
 
-	@classmethod
-	def from_data(
-		cls,
-		staff_id: str,
-		full_name: str,
-		nationality: str,
-		role: str,
-		experience_years: str,
-		qualifications: str,
-		franchise_team: str,
-		salary: str,
-	) -> "CoachingStaff":
-		s = cls()
-		s._staff_id = staff_id.strip()
-		s._full_name = full_name.strip()
-		s._nationality = nationality.strip()
-		s._role = role.strip()
-		s._experience_years = int(experience_years)
-		s._qualifications = qualifications.strip()
-		s._franchise_team = franchise_team.strip()
-		s.salary = float(salary)
-		return s
+    @classmethod
+    def from_line(cls, line: str) -> "CoachingStaff":
+        return cls(*_parse_line(line, 8))
 
-	@classmethod
-	def load_from_line(cls, line: str) -> "CoachingStaff":
-		parts = [x.strip() for x in line.split("|")]
-		if len(parts) != 8:
-			raise ValueError(f"Malformed staff line: {line}")
-		return cls.from_data(*parts)
+    def display(self) -> None:
+        print(f"  {self.full_name:<24} {self.role:<18} Exp:{self.experience_years:>2}y")
 
-	@property
-	def full_name(self) -> str:
-		return self._full_name
-
-	@property
-	def role(self) -> str:
-		return self._role
-
-	@property
-	def franchise_team(self) -> str:
-		return self._franchise_team
-
-	@property
-	def salary(self) -> float:
-		return self._salary
-
-	@salary.setter
-	def salary(self, value: float) -> None:
-		if value < 0:
-			raise ValueError("Salary cannot be negative")
-		self._salary = value
-
-	def display(self) -> None:
-		print(f"{self._full_name:<24} {self._role:<18} Exp:{self._experience_years:>2}y")
-
-	def __str__(self) -> str:
-		return f"{self._full_name} ({self._role})"
+    def __str__(self) -> str:
+        return f"{self.full_name} ({self.role})"
 
 
-class Franchise:
-	def __init__(self, franchise_id: str = "", team_name: str = "", city: str = "", owner: str = "") -> None:
-		self._franchise_id = franchise_id
-		self._team_name = team_name
-		self._city = city
-		self._owner = owner
-		self._titles_won = 0
-		self._matches_played = 0
-		self._matches_won = 0
-		self._matches_lost = 0
-		self._net_run_rate = 0.0
-		self._points = 0
-		self._squad: list[Player] = []
-		self._staff: list[CoachingStaff] = []
-
-	@property
-	def franchise_id(self) -> str:
-		return self._franchise_id
-
-	@property
-	def team_name(self) -> str:
-		return self._team_name
-
-	@property
-	def matches_played(self) -> int:
-		return self._matches_played
-
-	@property
-	def matches_won(self) -> int:
-		return self._matches_won
-
-	@property
-	def matches_lost(self) -> int:
-		return self._matches_lost
-
-	@property
-	def net_run_rate(self) -> float:
-		return self._net_run_rate
-
-	@property
-	def points(self) -> int:
-		return self._points
-
-	@property
-	def squad(self) -> list[Player]:
-		return self._squad
-
-	def add_player(self, player: Player) -> None:
-		if len(self._squad) < 25:
-			self._squad.append(player)
-
-	def add_staff(self, staff_member: CoachingStaff) -> None:
-		self._staff.append(staff_member)
-
-	def remove_player(self, player_id: str) -> None:
-		self._squad = [p for p in self._squad if p.player_id != player_id]
-
-	def find_player(self, name: str) -> Player | None:
-		target = name.strip().lower()
-		for player in self._squad:
-			if player.full_name.lower() == target:
-				return player
-		return None
-
-	def update_result(self, won: bool, nrr_change: float) -> None:
-		self._matches_played += 1
-		self._net_run_rate = round(self._net_run_rate + nrr_change, 2)
-		if won:
-			self._matches_won += 1
-			self._points += 2
-		else:
-			self._matches_lost += 1
-
-	def display_squad(self) -> None:
-		print(f"\nSquad - {self._team_name} ({len(self._squad)} players)")
-		print("-" * 70)
-		for player in sorted(self._squad, reverse=True):
-			player.display()
-
-	def display_staff(self) -> None:
-		print(f"\nStaff - {self._team_name}")
-		print("-" * 50)
-		for staff_member in self._staff:
-			staff_member.display()
-
-	def display(self) -> None:
-		print(
-			f"{self._team_name:<22} City:{self._city:<12} "
-			f"P:{self._matches_played:<2} W:{self._matches_won:<2} "
-			f"L:{self._matches_lost:<2} NRR:{self._net_run_rate:>5.2f} Pts:{self._points}"
-		)
-
-	def __bool__(self) -> bool:
-		return True
-
-	def __len__(self) -> int:
-		return len(self._squad)
-
-	def __contains__(self, player: Player) -> bool:
-		return player in self._squad
-
-	def __str__(self) -> str:
-		return self._team_name
-
+# ─── Venue ───
 
 class Venue:
-	def __init__(self) -> None:
-		self._venue_id = ""
-		self._stadium_name = ""
-		self._city = ""
-		self._country = ""
-		self._capacity = 0
-		self._pitch_type = ""
-		self._has_floodlights = False
-		self._matches_hosted = 0
+    def __init__(self, venue_id, stadium_name, city, country,
+                 capacity, pitch_type, has_floodlights, matches_hosted):
+        self.venue_id = venue_id
+        self.stadium_name = stadium_name
+        self.city = city
+        self.country = country
+        self.capacity = int(capacity)
+        self.pitch_type = pitch_type
+        self.has_floodlights = str(has_floodlights).strip().lower() in {"1", "true", "yes"}
+        self.matches_hosted = int(matches_hosted)
 
-	@classmethod
-	def from_data(
-		cls,
-		venue_id: str,
-		stadium_name: str,
-		city: str,
-		country: str,
-		capacity: str,
-		pitch_type: str,
-		has_floodlights: str,
-		matches_hosted: str,
-	) -> "Venue":
-		v = cls()
-		v._venue_id = venue_id.strip()
-		v._stadium_name = stadium_name.strip()
-		v._city = city.strip()
-		v._country = country.strip()
-		v._capacity = int(capacity)
-		v._pitch_type = pitch_type.strip()
-		v._has_floodlights = _to_bool(has_floodlights)
-		v._matches_hosted = int(matches_hosted)
-		return v
+    @classmethod
+    def from_line(cls, line: str) -> "Venue":
+        return cls(*_parse_line(line, 8))
 
-	@classmethod
-	def load_from_line(cls, line: str) -> "Venue":
-		parts = [x.strip() for x in line.split("|")]
-		if len(parts) != 8:
-			raise ValueError(f"Malformed venue line: {line}")
-		return cls.from_data(*parts)
+    def display(self) -> None:
+        lights = "Yes" if self.has_floodlights else "No"
+        print(f"  {self.stadium_name:<38} {self.city:<12} "
+              f"Cap:{self.capacity:<6} Pitch:{self.pitch_type:<17} Lights:{lights}")
 
-	@property
-	def city(self) -> str:
-		return self._city
+    def __str__(self) -> str:
+        return f"{self.stadium_name}, {self.city}"
 
-	@property
-	def stadium_name(self) -> str:
-		return self._stadium_name
 
-	def increment_matches_hosted(self) -> None:
-		self._matches_hosted += 1
+# ─── Franchise ───
 
-	def display(self) -> None:
-		lights = "Yes" if self._has_floodlights else "No"
-		print(
-			f"{self._stadium_name:<28} {self._city:<12} "
-			f"Cap:{self._capacity:<6} Pitch:{self._pitch_type:<17} Lights:{lights}"
-		)
+class Franchise:
+    def __init__(self, franchise_id, team_name, city, home_ground, owner,
+                 titles_won, matches_played, matches_won, matches_lost,
+                 net_run_rate, points, jersey_color, founded_year):
+        self.franchise_id = franchise_id
+        self.team_name = team_name
+        self.city = city
+        self.home_ground = home_ground
+        self.owner = owner
+        self.titles_won = int(titles_won)
+        self.matches_played = int(matches_played)
+        self.matches_won = int(matches_won)
+        self.matches_lost = int(matches_lost)
+        self.net_run_rate = float(net_run_rate)
+        self.points = int(points)
+        self.jersey_color = jersey_color
+        self.founded_year = int(founded_year)
+        self.squad: list[Player] = []
+        self.staff: list[CoachingStaff] = []
 
-	def __str__(self) -> str:
-		return f"{self._stadium_name}, {self._city}"
+    @classmethod
+    def from_line(cls, line: str) -> "Franchise":
+        return cls(*_parse_line(line, 13))
 
+    def update_result(self, won: bool, nrr_change: float) -> None:
+        self.matches_played += 1
+        self.net_run_rate = round(self.net_run_rate + nrr_change, 2)
+        if won:
+            self.matches_won += 1
+            self.points += 2
+        else:
+            self.matches_lost += 1
+
+    def display_squad(self) -> None:
+        print(f"\n  Squad ({len(self.squad)} players)")
+        print(f"  {'-' * 68}")
+        for player in sorted(self.squad, reverse=True):
+            player.display()
+
+    def display_staff(self) -> None:
+        print(f"\n  Coaching Staff ({len(self.staff)} members)")
+        print(f"  {'-' * 50}")
+        for s in self.staff:
+            s.display()
+
+    def display(self) -> None:
+        print(f"  {self.team_name:<22} City:{self.city:<12} "
+              f"P:{self.matches_played:<3} W:{self.matches_won:<3} "
+              f"L:{self.matches_lost:<3} NRR:{self.net_run_rate:>6.2f} Pts:{self.points}")
+
+    def __bool__(self) -> bool:
+        return True
+
+    def __len__(self) -> int:
+        return len(self.squad)
+
+    def __str__(self) -> str:
+        return self.team_name
+
+
+# ─── Match ───
 
 class Match:
-	def __init__(
-		self,
-		match_id: str,
-		team_a: Franchise,
-		team_b: Franchise,
-		venue: Venue,
-		match_date: str,
-		match_type: str,
-	) -> None:
-		self._match_id = match_id
-		self._team_a = team_a
-		self._team_b = team_b
-		self._venue = venue
-		self._match_date = match_date
-		self._match_type = match_type
-		self._score_a = 0
-		self._score_b = 0
-		self._wickets_a = 0
-		self._wickets_b = 0
-		self._result = ""
-		self._is_completed = False
+    def __init__(self, match_id: str, team_a: Franchise, team_b: Franchise,
+                 venue: Venue, match_date: str, match_type: str) -> None:
+        self.match_id = match_id
+        self.team_a = team_a
+        self.team_b = team_b
+        self.venue = venue
+        self.match_date = match_date
+        self.match_type = match_type
+        self.score_a = self.score_b = 0
+        self.wickets_a = self.wickets_b = 0
+        self.result = ""
+        self.is_completed = False
 
-	def simulate_match(self) -> None:
-		self._score_a = random.randint(110, 220)
-		self._score_b = random.randint(110, 220)
-		self._wickets_a = random.randint(1, 10)
-		self._wickets_b = random.randint(1, 10)
+    def simulate_match(self) -> None:
+        self.score_a = random.randint(110, 220)
+        self.score_b = random.randint(110, 220)
+        self.wickets_a = random.randint(1, 10)
+        self.wickets_b = random.randint(1, 10)
 
-		if self._score_a >= self._score_b:
-			winner = self._team_a
-		else:
-			winner = self._team_b
+        winner = self.team_a if self.score_a >= self.score_b else self.team_b
+        self.result = f"{winner} won by {abs(self.score_a - self.score_b)} runs"
+        self.is_completed = True
 
-		diff = abs(self._score_a - self._score_b)
-		self._result = f"{winner} won by {diff} runs"
-		self._is_completed = True
+        nrr_delta = round((self.score_a - self.score_b) / 100.0, 2)
+        self.team_a.update_result(self.score_a >= self.score_b, nrr_delta)
+        self.team_b.update_result(self.score_b > self.score_a, -nrr_delta)
+        self.venue.matches_hosted += 1
 
-		nrr_delta = round((self._score_a - self._score_b) / 100.0, 2)
-		self._team_a.update_result(self._score_a >= self._score_b, nrr_delta)
-		self._team_b.update_result(self._score_b > self._score_a, -nrr_delta)
-		self._venue.increment_matches_hosted()
+    def display_scorecard(self) -> None:
+        if not self.is_completed:
+            print(f"  {self.match_id}: not completed yet")
+            return
+        print(f"  {self.match_id} | {self.team_a} vs {self.team_b} | {self.venue}\n"
+              f"    {self.team_a.franchise_id}: {self.score_a}/{self.wickets_a}  "
+              f"{self.team_b.franchise_id}: {self.score_b}/{self.wickets_b}\n"
+              f"    Result: {self.result}")
 
-	def get_winner(self) -> Franchise | None:
-		if not self._is_completed:
-			return None
-		return self._team_a if self._score_a >= self._score_b else self._team_b
+    def __str__(self) -> str:
+        return f"{self.match_id}: {self.team_a} vs {self.team_b} @ {self.venue}"
 
-	def display_scorecard(self) -> None:
-		if not self._is_completed:
-			print(f"{self._match_id}: not completed yet")
-			return
-		print(
-			f"{self._match_id} | {self._team_a} vs {self._team_b} | {self._venue}\n"
-			f"  {self._team_a.franchise_id}: {self._score_a}/{self._wickets_a}  "
-			f"{self._team_b.franchise_id}: {self._score_b}/{self._wickets_b}\n"
-			f"  Result: {self._result}"
-		)
 
-	def __str__(self) -> str:
-		return f"{self._match_id}: {self._team_a} vs {self._team_b} @ {self._venue}"
-
+# ─── PSL System ───
 
 class PSL:
-	def __init__(self, season: str, year: int) -> None:
-		self._season = season
-		self._year = year
-		self._franchises: list[Franchise] = []
-		self._venues: list[Venue] = []
-		self._schedule: list[Match] = []
+    def __init__(self, season: str, year: int) -> None:
+        self._season = season
+        self._year = year
+        self._franchises: list[Franchise] = []
+        self._venues: list[Venue] = []
+        self._schedule: list[Match] = []
 
-	def add_franchise(self, franchise: Franchise) -> None:
-		self._franchises.append(franchise)
+    # ── Generic lookup ──
 
-	def _find_franchise_by_id_code(self, code: str) -> Franchise | None:
-		code = code.strip().upper()
-		for team in self._franchises:
-			if team.franchise_id.upper() == code:
-				return team
-		return None
+    def _find_franchise(self, field: str, value: str) -> Franchise | None:
+        target = value.strip().lower()
+        for team in self._franchises:
+            if getattr(team, field).lower() == target:
+                return team
+        return None
 
-	def _find_franchise_by_name(self, team_name: str) -> Franchise | None:
-		target = team_name.strip().lower()
-		for team in self._franchises:
-			if team.team_name.lower() == target:
-				return team
-		return None
+    # ── Loaders ──
 
-	def load_franchises(self, filename: str | None = None) -> None:
-		self._franchises = []
+    def load_all(self) -> None:
+        # Franchises
+        self._franchises = []
+        for line in _read_lines(DATA_DIR / "teams.txt"):
+            try:
+                self._franchises.append(Franchise.from_line(line))
+            except ValueError as e:
+                print(f"  Skipping: {e}")
 
-		# Default source: franchise data defined in franchise.py
-		if filename is None:
-			from franchise import FRANCHISES_DATA, Franchise as ExternalFranchise
+        # Venues
+        self._venues = []
+        for line in _read_lines(DATA_DIR / "venues.txt"):
+            try:
+                self._venues.append(Venue.from_line(line))
+            except ValueError as e:
+                print(f"  Skipping: {e}")
 
-			for line in FRANCHISES_DATA:
-				try:
-					franchise = ExternalFranchise.from_line(line)
-					self._franchises.append(franchise)
-				except ValueError:
-					print(f"Skipping malformed franchise row: {line}")
-			return
+        # Players → assign to franchise by ID code (PSL-LQ-001 → "LQ")
+        for line in _read_lines(DATA_DIR / "players.txt"):
+            try:
+                player = Player.from_line(line)
+                code = player.player_id.split("-")[1] if "-" in player.player_id else ""
+                team = self._find_franchise("franchise_id", code)
+                if team:
+                    team.squad.append(player)
+            except ValueError as e:
+                print(f"  Skipping: {e}")
 
-		path = Path(filename)
-		if not path.exists():
-			print(f"Warning: {filename} not found.")
-			return
-		with path.open("r", encoding="utf-8") as fh:
-			from franchise import Franchise as ExternalFranchise
+        # Coaching staff → assign by franchise name
+        for line in _read_lines(DATA_DIR / "coaching_staff.txt"):
+            try:
+                s = CoachingStaff.from_line(line)
+                team = self._find_franchise("team_name", s.franchise_team)
+                if team:
+                    team.staff.append(s)
+            except ValueError as e:
+                print(f"  Skipping: {e}")
 
-			for raw in fh:
-				line = raw.strip()
-				if not line or line.startswith("#"):
-					continue
-				try:
-					franchise = ExternalFranchise.from_line(line)
-					self._franchises.append(franchise)
-				except ValueError:
-					print(f"Skipping malformed franchise row: {line}")
+    # ── City search ──
 
-	def load_venues(self, filename: str | None = None) -> None:
-		self._venues = []
+    def get_available_cities(self) -> list[str]:
+        return [t.city for t in self._franchises]
 
-		# Default source: venues data defined in venue.py
-		if filename is None:
-			from venue import VENUES_DATA
+    def display_city_info(self, city: str) -> None:
+        team = self._find_franchise("city", city)
+        if not team:
+            print(f"\n  No franchise found for city: {city}")
+            return
 
-			for line in VENUES_DATA:
-				try:
-					self._venues.append(Venue.load_from_line(line))
-				except ValueError:
-					print(f"Skipping malformed venue row: {line}")
-			return
+        print(f"\n{'=' * 60}")
+        print(f"  {team.team_name} ({team.city})")
+        print(f"{'=' * 60}")
+        print(f"  Owner       : {team.owner}")
+        print(f"  Home Ground : {team.home_ground}")
+        print(f"  Founded     : {team.founded_year}")
+        print(f"  Titles Won  : {team.titles_won}")
+        print(f"  Jersey      : {team.jersey_color}")
+        print(f"  Record      : P:{team.matches_played} W:{team.matches_won} L:{team.matches_lost}")
+        print(f"  NRR         : {team.net_run_rate:+.3f}")
 
-		path = Path(filename)
-		if not path.exists():
-			print(f"Warning: {filename} not found.")
-			return
-		with path.open("r", encoding="utf-8") as fh:
-			for raw in fh:
-				line = raw.strip()
-				if not line or line.startswith("#"):
-					continue
-				try:
-					self._venues.append(Venue.load_from_line(line))
-				except ValueError:
-					print(f"Skipping malformed venue row: {line}")
+        city_venues = [v for v in self._venues if v.city.lower() == city.strip().lower()]
+        if city_venues:
+            print(f"\n  Venue(s) in {city}:")
+            print(f"  {'-' * 50}")
+            for v in city_venues:
+                v.display()
 
-	def load_players(self, filename: str | None = None) -> None:
-		# Default source: player data defined in player.py
-		if filename is None:
-			from player import PLAYERS_DATA, Player as ExternalPlayer
+        team.display_squad()
+        team.display_staff()
 
-			for line in PLAYERS_DATA:
-				try:
-					player = ExternalPlayer.from_line(line)
-				except ValueError:
-					print(f"Skipping malformed player row: {line}")
-					continue
+    # ── Schedule & simulation ──
 
-				parts = [x.strip() for x in line.split("|")]
-				# Format: PSL-XX-001 -> XX is franchise code.
-				code = parts[0].split("-")[1] if "-" in parts[0] else ""
-				team = self._find_franchise_by_id_code(code)
-				if team:
-					team.add_player(player)
-			return
+    def generate_schedule(self) -> None:
+        self._schedule.clear()
+        if len(self._franchises) < 2 or not self._venues:
+            return
+        match_no = 1
+        for i in range(len(self._franchises)):
+            for j in range(i + 1, len(self._franchises)):
+                self._schedule.append(Match(
+                    match_id=f"Match {match_no:02d}",
+                    team_a=self._franchises[i],
+                    team_b=self._franchises[j],
+                    venue=self._venues[(match_no - 1) % len(self._venues)],
+                    match_date=f"2025-04-{(match_no % 28) + 1:02d}",
+                    match_type="Group Stage",
+                ))
+                match_no += 1
 
-		path = Path(filename)
-		if not path.exists():
-			print(f"Warning: {filename} not found.")
-			return
-		with path.open("r", encoding="utf-8") as fh:
-			for raw in fh:
-				line = raw.strip()
-				if not line or line.startswith("#"):
-					continue
-				try:
-					player = Player.load_from_line(line)
-				except ValueError:
-					print(f"Skipping malformed player row: {line}")
-					continue
+    def run_season(self) -> None:
+        if not self._schedule:
+            print("  Schedule is empty. Generate schedule first.")
+            return
+        print("\n--- Simulating Group Stage Matches ---")
+        for match in self._schedule:
+            match.simulate_match()
+            match.display_scorecard()
 
-				parts = [x.strip() for x in line.split("|")]
-				# Format: PSL-XX-001 -> XX is franchise code.
-				code = parts[0].split("-")[1] if "-" in parts[0] else ""
-				team = self._find_franchise_by_id_code(code)
-				if team:
-					team.add_player(player)
+    # ── Display ──
 
-	def load_coaching_staff(self, filename: str | None = None) -> None:
-		self.staff = []
+    def display_points_table(self) -> None:
+        sorted_teams = sorted(self._franchises, key=lambda f: (f.points, f.net_run_rate), reverse=True)
+        print("\n--- POINTS TABLE ---")
+        print(f"  {'Pos':<4}{'Team':<22}{'P':<4}{'W':<4}{'L':<4}{'NRR':<8}{'Pts'}")
+        for pos, t in enumerate(sorted_teams, start=1):
+            print(f"  {pos:<4}{str(t):<22}{t.matches_played:<4}{t.matches_won:<4}"
+                  f"{t.matches_lost:<4}{t.net_run_rate:<8.2f}{t.points}")
 
-		# Default source: coaching staff data defined in coaching_staff.py
-		if filename is None:
-			from coaching_staff import COACHING_STAFF_DATA, CoachingStaff as ExternalCoachingStaff
+    def display_all_venues(self) -> None:
+        print("\n--- VENUES ---")
+        for v in self._venues:
+            v.display()
 
-			for line in COACHING_STAFF_DATA:
-				try:
-					staff_member = ExternalCoachingStaff.from_line(line)
-					self.staff.append(staff_member)
-				except ValueError:
-					print(f"Skipping malformed staff row: {line}")
-			self._assign_staff_to_franchises()
-			return
+    def display_all_franchises(self) -> None:
+        print("\n--- ALL FRANCHISES ---")
+        for t in self._franchises:
+            t.display()
 
-		path = Path(filename)
-		if not path.exists():
-			print(f"Warning: {filename} not found.")
-			return
-		with path.open("r", encoding="utf-8") as fh:
-			for raw in fh:
-				line = raw.strip()
-				if not line or line.startswith("#"):
-					continue
-				try:
-					staff = CoachingStaff.from_line(line)
-					self.staff.append(staff)
-				except ValueError:
-					print(f"Skipping malformed staff row: {line}")
-					continue
-		self._assign_staff_to_franchises()
-
-	def _assign_staff_to_franchises(self) -> None:
-		"""Assign coaching staff to their respective franchises based on franchise name."""
-		for staff_member in self.staff:
-			franchise = self._find_franchise_by_name(staff_member.franchise_name)
-			if franchise:
-				franchise.add_staff(staff_member)
-
-	def generate_schedule(self) -> None:
-		self._schedule.clear()
-		if len(self._franchises) < 2 or not self._venues:
-			return
-
-		match_no = 1
-		for i in range(len(self._franchises)):
-			for j in range(i + 1, len(self._franchises)):
-				venue = self._venues[(match_no - 1) % len(self._venues)]
-				match = Match(
-					match_id=f"Match {match_no:02d}",
-					team_a=self._franchises[i],
-					team_b=self._franchises[j],
-					venue=venue,
-					match_date=f"2025-04-{(match_no % 28) + 1:02d}",
-					match_type="Group Stage",
-				)
-				self._schedule.append(match)
-				match_no += 1
-
-	def run_season(self) -> None:
-		if not self._schedule:
-			print("Schedule is empty. Generate schedule first.")
-			return
-		print("\n--- Simulating Group Stage Matches ---")
-		for match in self._schedule:
-			match.simulate_match()
-			match.display_scorecard()
-
-	def display_points_table(self) -> None:
-		sorted_teams = sorted(
-			self._franchises,
-			key=lambda f: (f.points, f.net_run_rate),
-			reverse=True,
-		)
-		print("\n--- POINTS TABLE ---")
-		print(f"{'Pos':<4}{'Team':<22}{'P':<4}{'W':<4}{'L':<4}{'NRR':<8}{'Pts'}")
-		for pos, team in enumerate(sorted_teams, start=1):
-			print(
-				f"{pos:<4}{str(team):<22}{team.matches_played:<4}"
-				f"{team.matches_won:<4}{team.matches_lost:<4}"
-				f"{team.net_run_rate:<8.2f}{team.points}"
-			)
-
-	def display_all_venues(self) -> None:
-		print("\n--- VENUES ---")
-		for venue in self._venues:
-			venue.display()
-
-	def display_all_franchises(self) -> None:
-		print("\n--- FRANCHISES ---")
-		for team in self._franchises:
-			team.display()
-			team.display_squad()
-			team.display_staff()
-
-	def find_top_scorer(self) -> Player | None:
-		all_players = [player for f in self._franchises for player in f.squad]
-		return max(all_players, key=lambda p: p.total_runs) if all_players else None
-
-	def find_top_wicket_taker(self) -> Player | None:
-		all_players = [player for f in self._franchises for player in f.squad]
-		return max(all_players, key=lambda p: p.total_wickets) if all_players else None
-
-
-def print_banner() -> None:
-	print("=" * 58)
-	print("   PSL SEASON 10 MANAGEMENT SYSTEM  |  Python OOP")
-	print("=" * 58)
-
-
-def seed_default_franchises(league: PSL) -> None:
-	defaults = [
-		("LQ", "Lahore Qalandars", "Lahore", "Fawad Rana"),
-		("KK", "Karachi Kings", "Karachi", "Salman Iqbal"),
-		("IU", "Islamabad United", "Islamabad", "Ali Naqvi"),
-		("MS", "Multan Sultans", "Multan", "Ali Tareen"),
-		("PZ", "Peshawar Zalmi", "Peshawar", "Javed Afridi"),
-		("QG", "Quetta Gladiators", "Quetta", "Nadeem Omar"),
-	]
-	for code, name, city, owner in defaults:
-		league.add_franchise(Franchise(code, name, city, owner))
-
-
-def main() -> None:
-	league = PSL("Season 10", 2025)
-	seed_default_franchises(league)
-
-	league.load_venues("data/venues.txt")
-	league.load_players("data/players.txt")
-	league.load_coaching_staff("data/coaching_staff.txt")
-	league.generate_schedule()
-
-	print_banner()
-	while True:
-		print("\n1. View All Franchises & Squads")
-		print("2. View All Venues")
-		print("3. Run Full Season Simulation")
-		print("4. Display Points Table")
-		print("5. Show Top Scorer & Top Wicket-Taker")
-		print("0. Exit")
-
-		choice = input("\nEnter choice: ").strip()
-		if choice == "1":
-			league.display_all_franchises()
-		elif choice == "2":
-			league.display_all_venues()
-		elif choice == "3":
-			league.run_season()
-		elif choice == "4":
-			league.display_points_table()
-		elif choice == "5":
-			top_scorer = league.find_top_scorer()
-			top_bowler = league.find_top_wicket_taker()
-			print(f"Top Scorer: {top_scorer if top_scorer else 'N/A'}")
-			print(f"Top Wicket-Taker: {top_bowler if top_bowler else 'N/A'}")
-		elif choice == "0":
-			print("Goodbye")
-			break
-		else:
-			print("Invalid choice. Try again.")
-
-
-if __name__ == "__main__":
-	main()
+    def find_top_player(self, stat: str = "total_runs") -> Player | None:
+        all_players = [p for f in self._franchises for p in f.squad]
+        return max(all_players, key=lambda p: getattr(p, stat)) if all_players else None

@@ -1,0 +1,20 @@
+Data is a collection of raw facts and figures
+Two types of Data:
+1. Structured Data
+2. Unstructured Data
+
+
+Structured Data -> highly organized (rows & columns) -> fixed format -> Relational DBs
+Unstructured Data -> has no predefined format or schema -> no fixed format -> NoSQL
+
+1. Quantitative Data (Numerical Data) - > You can measure it
+Continuous Variables: variables that can take any value within a range.
+2. Qualitative Data -> We can't calcute we focus on qulaity and clean
+
+Measure of Central Tendency: Single values that attempt to describe the center of typical value of dataset
+1. Mean --> arthimetic average (sum + count)
+2. Median --> The middle value when data is stored.
+if number is odd fromula is (n+1)/2
+if number is even (n/2)+1
+3. Mode --> The most frequent occuring value
+
