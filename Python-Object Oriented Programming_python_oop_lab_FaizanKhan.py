@@ -460,4 +460,3 @@ class Smartphone(Phone, Camera):
 
 phone1 = Smartphone()
 phone1.power_on()
-
